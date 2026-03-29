@@ -8,6 +8,10 @@ export const useInventory = () => {
     return saved ? JSON.parse(saved) : null;
   });
 
+  const [storedPassword, setStoredPassword] = useState<string>(() => {
+    return localStorage.getItem('inventory_pass') || 'admin123';
+  });
+
   const [settings, setSettings] = useState<AppSettings>(() => {
     const saved = localStorage.getItem('inventory_settings');
     return saved ? JSON.parse(saved) : { currencyCode: 'EUR' };
@@ -54,11 +58,12 @@ export const useInventory = () => {
     localStorage.setItem('inventory_suppliers', JSON.stringify(suppliers));
     if (user) localStorage.setItem('inventory_user', JSON.stringify(user));
     else localStorage.removeItem('inventory_user');
-  }, [settings, products, movements, categories, suppliers, user]);
+    localStorage.setItem('inventory_pass', storedPassword);
+  }, [settings, products, movements, categories, suppliers, user, storedPassword]);
 
   const login = (email: string, password: string) => {
-    // Basic simulation of admin login
-    if (email === 'admin@stockmaster.com' && password === 'admin123') {
+    // Check against stored password
+    if (email === 'admin@stockmaster.com' && password === storedPassword) {
       setUser({
         id: '1',
         name: 'Administrateur',
@@ -72,6 +77,14 @@ export const useInventory = () => {
 
   const logout = () => {
     setUser(null);
+  };
+
+  const changePassword = (oldPass: string, newPass: string) => {
+    if (oldPass === storedPassword) {
+      setStoredPassword(newPass);
+      return true;
+    }
+    return false;
   };
 
   const addProduct = (product: Omit<Product, 'id' | 'lastUpdated'>) => {
@@ -163,6 +176,7 @@ export const useInventory = () => {
     setSettings,
     login,
     logout,
+    changePassword,
     addProduct,
     updateProduct,
     deleteProduct,

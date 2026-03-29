@@ -15,7 +15,7 @@ function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const { 
     products, movements, categories, suppliers, stats, settings, user,
-    setSettings, login, logout, addProduct, updateProduct, deleteProduct, 
+    setSettings, login, logout, changePassword, addProduct, updateProduct, deleteProduct, 
     addCategory, deleteCategory, addSupplier, deleteSupplier,
     formatPrice 
   } = useInventory();
@@ -153,7 +153,12 @@ function App() {
         )}
 
         {activeTab === 'settings' && (
-          <Settings settings={settings} onSettingsChange={setSettings} user={user} />
+          <Settings 
+            settings={settings} 
+            onSettingsChange={setSettings} 
+            user={user}
+            onChangePassword={changePassword}
+          />
         )}
       </main>
     </div>
