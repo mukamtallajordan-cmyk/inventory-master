@@ -7,9 +7,9 @@ interface InventoryProps {
   products: Product[];
   categories: Category[];
   suppliers: Supplier[];
-  onAdd: (product: any) => void;
-  onUpdate: (id: string, updates: any, reason: string) => void;
-  onDelete: (id: string) => void;
+  onAdd: (product: any) => Promise<boolean>;
+  onUpdate: (id: string, updates: any, reason: string) => Promise<boolean>;
+  onDelete: (id: string) => Promise<boolean>;
   formatPrice: (price: number) => string;
 }
 

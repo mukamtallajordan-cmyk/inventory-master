@@ -8,7 +8,7 @@ interface SettingsProps {
   settings: AppSettings;
   onSettingsChange: (settings: AppSettings) => void;
   user: User;
-  onChangePassword: (oldPass: string, newPass: string) => boolean;
+  onChangePassword: (oldPass: string, newPass: string) => Promise<boolean>;
 }
 
 export const Settings: React.FC<SettingsProps> = ({ settings, onSettingsChange, user, onChangePassword }) => {
@@ -24,7 +24,7 @@ export const Settings: React.FC<SettingsProps> = ({ settings, onSettingsChange, 
     });
   };
 
-  const handlePasswordChange = (e: React.FormEvent) => {
+  const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault();
     if (newPassword !== confirmPassword) {
       setStatus({ type: 'error', msg: 'Les nouveaux mots de passe ne correspondent pas.' });
@@ -35,14 +35,18 @@ export const Settings: React.FC<SettingsProps> = ({ settings, onSettingsChange, 
       return;
     }
     
-    const success = onChangePassword(oldPassword, newPassword);
-    if (success) {
-      setStatus({ type: 'success', msg: 'Mot de passe modifié avec succès !' });
-      setOldPassword('');
-      setNewPassword('');
-      setConfirmPassword('');
-    } else {
-      setStatus({ type: 'error', msg: 'Ancien mot de passe incorrect.' });
+    try {
+      const success = await onChangePassword(oldPassword, newPassword);
+      if (success) {
+        setStatus({ type: 'success', msg: 'Mot de passe modifié avec succès !' });
+        setOldPassword('');
+        setNewPassword('');
+        setConfirmPassword('');
+      } else {
+        setStatus({ type: 'error', msg: 'Ancien mot de passe incorrect ou erreur serveur.' });
+      }
+    } catch (err) {
+      setStatus({ type: 'error', msg: 'Une erreur est survenue.' });
     }
   };
 

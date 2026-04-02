@@ -5,8 +5,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 interface CategoriesProps {
   categories: Category[];
-  onAdd: (name: string, description?: string) => void;
-  onDelete: (id: string) => void;
+  onAdd: (name: string, description?: string) => Promise<boolean>;
+  onDelete: (id: string) => Promise<boolean>;
 }
 
 export const Categories: React.FC<CategoriesProps> = ({ categories, onAdd, onDelete }) => {

@@ -14,11 +14,22 @@ function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const { 
-    products, movements, categories, suppliers, stats, settings, user,
+    products, movements, categories, suppliers, stats, settings, user, loading,
     setSettings, login, logout, changePassword, addProduct, updateProduct, deleteProduct, 
     addCategory, deleteCategory, addSupplier, deleteSupplier,
     formatPrice 
   } = useInventory();
+
+  if (loading) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-primary)' }}>
+        <div className="glass-card" style={{ padding: '2rem', textAlign: 'center' }}>
+          <div className="spinner" style={{ marginBottom: '1rem' }}></div>
+          <p style={{ color: 'var(--text-secondary)' }}>Chargement de StockMaster...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!user) {
     return <Login onLogin={login} />;

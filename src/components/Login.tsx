@@ -3,20 +3,28 @@ import { Lock, Mail, Package, ShieldCheck } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 interface LoginProps {
-  onLogin: (email: string, pass: string) => boolean;
+  onLogin: (email: string, pass: string) => Promise<boolean>;
 }
 
 export const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const [email, setEmail] = useState('admin@stockmaster.com');
   const [password, setPassword] = useState('admin123');
   const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    const success = onLogin(email, password);
-    if (!success) {
-      setError('Identifiants invalides. Veuillez réessayer.');
+    setIsSubmitting(true);
+    try {
+      const success = await onLogin(email, password);
+      if (!success) {
+        setError('Identifiants invalides. Veuillez réessayer.');
+      }
+    } catch (err) {
+      setError('Une erreur est survenue lors de la connexion.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -79,9 +87,9 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
             </div>
           )}
 
-          <button type="submit" className="btn btn-primary" style={{ width: '100%', padding: '1rem', display: 'flex', justifyContent: 'center', gap: '0.75rem' }}>
+          <button type="submit" disabled={isSubmitting} className="btn btn-primary" style={{ width: '100%', padding: '1rem', display: 'flex', justifyContent: 'center', gap: '0.75rem', opacity: isSubmitting ? 0.7 : 1 }}>
             <ShieldCheck size={20} />
-            Se Connecter
+            {isSubmitting ? 'Connexion...' : 'Se Connecter'}
           </button>
         </form>
 

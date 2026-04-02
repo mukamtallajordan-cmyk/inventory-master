@@ -1,153 +1,192 @@
 import { useState, useEffect } from 'react';
 import type { Product, Movement, InventoryStats, AppSettings, Category, Supplier, User } from '../types';
 import { CURRENCIES } from '../types';
+import { supabase } from '../lib/supabase';
 
 export const useInventory = () => {
-  const [user, setUser] = useState<User | null>(() => {
-    const saved = localStorage.getItem('inventory_user');
-    return saved ? JSON.parse(saved) : null;
-  });
-
-  const [storedPassword, setStoredPassword] = useState<string>(() => {
-    return localStorage.getItem('inventory_pass') || 'admin123';
-  });
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
 
   const [settings, setSettings] = useState<AppSettings>(() => {
     const saved = localStorage.getItem('inventory_settings');
     return saved ? JSON.parse(saved) : { currencyCode: 'EUR' };
   });
 
-  const [categories, setCategories] = useState<Category[]>(() => {
-    const saved = localStorage.getItem('inventory_categories');
-    if (saved) return JSON.parse(saved);
-    return [
-      { id: 'cat-1', name: 'Électronique', description: 'Gadgets et ordinateurs' },
-      { id: 'cat-2', name: 'Accessoires', description: 'Périphériques divers' },
-    ];
-  });
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [movements, setMovements] = useState<Movement[]>([]);
 
-  const [suppliers, setSuppliers] = useState<Supplier[]>(() => {
-    const saved = localStorage.getItem('inventory_suppliers');
-    if (saved) return JSON.parse(saved);
-    return [
-      { id: 'sup-1', name: 'TechGlobal Inc', contact: 'John Doe', email: 'john@techglobal.com', phone: '+123456789' },
-      { id: 'sup-2', name: 'Accessories Hub', contact: 'Jane Smith', email: 'jane@acc-hub.com', phone: '+987654321' },
-    ];
-  });
+  // Auth State Listener
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        setUser({
+          id: session.user.id,
+          email: session.user.email || '',
+          name: session.user.user_metadata.full_name || 'Utilisateur',
+          role: 'ADMIN' // Default for now
+        });
+      }
+      setLoading(false);
+    });
 
-  const [products, setProducts] = useState<Product[]>(() => {
-    const saved = localStorage.getItem('inventory_products');
-    if (saved) return JSON.parse(saved);
-    return [
-      { id: '1', name: 'Ordinateur Portable Pro', sku: 'LAP-001', categoryId: 'cat-1', supplierId: 'sup-1', price: 1200, quantity: 15, minQuantity: 5, lastUpdated: new Date().toISOString() },
-      { id: '2', name: 'Clavier Mécanique RGB', sku: 'KB-002', categoryId: 'cat-2', supplierId: 'sup-2', price: 89, quantity: 3, minQuantity: 10, lastUpdated: new Date().toISOString() },
-      { id: '3', name: 'Moniteur 27" 4K', sku: 'MON-003', categoryId: 'cat-1', supplierId: 'sup-1', price: 450, quantity: 8, minQuantity: 2, lastUpdated: new Date().toISOString() },
-    ];
-  });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        setUser({
+          id: session.user.id,
+          email: session.user.email || '',
+          name: session.user.user_metadata.full_name || 'Utilisateur',
+          role: 'ADMIN'
+        });
+      } else {
+        setUser(null);
+      }
+    });
 
-  const [movements, setMovements] = useState<Movement[]>(() => {
-    const saved = localStorage.getItem('inventory_movements');
-    return saved ? JSON.parse(saved) : [];
-  });
+    return () => subscription.unsubscribe();
+  }, []);
 
+  // Synchronize Settings to LocalStorage as they are lightweight
   useEffect(() => {
     localStorage.setItem('inventory_settings', JSON.stringify(settings));
-    localStorage.setItem('inventory_products', JSON.stringify(products));
-    localStorage.setItem('inventory_movements', JSON.stringify(movements));
-    localStorage.setItem('inventory_categories', JSON.stringify(categories));
-    localStorage.setItem('inventory_suppliers', JSON.stringify(suppliers));
-    if (user) localStorage.setItem('inventory_user', JSON.stringify(user));
-    else localStorage.removeItem('inventory_user');
-    localStorage.setItem('inventory_pass', storedPassword);
-  }, [settings, products, movements, categories, suppliers, user, storedPassword]);
+  }, [settings]);
 
-  const login = (email: string, password: string) => {
-    // Check against stored password
-    if (email === 'admin@stockmaster.com' && password === storedPassword) {
-      setUser({
-        id: '1',
-        name: 'Administrateur',
-        email: 'admin@stockmaster.com',
-        role: 'ADMIN'
-      });
-      return true;
+  // Fetch Data when user is logged in
+  useEffect(() => {
+    if (user) {
+      fetchData();
     }
-    return false;
-  };
+  }, [user]);
 
-  const logout = () => {
-    setUser(null);
-  };
+  const fetchData = async () => {
+    try {
+      const [
+        { data: categoriesData },
+        { data: suppliersData },
+        { data: productsData },
+        { data: movementsData }
+      ] = await Promise.all([
+        supabase.from('categories').select('*'),
+        supabase.from('suppliers').select('*'),
+        supabase.from('products').select('*'),
+        supabase.from('movements').select('*').order('date', { ascending: false }).limit(100)
+      ]);
 
-  const changePassword = (oldPass: string, newPass: string) => {
-    if (oldPass === storedPassword) {
-      setStoredPassword(newPass);
-      return true;
+      if (categoriesData) setCategories(categoriesData);
+      if (suppliersData) setSuppliers(suppliersData);
+      if (productsData) setProducts(productsData);
+      if (movementsData) setMovements(movementsData);
+    } catch (error) {
+      console.error('Error fetching data:', error);
     }
-    return false;
   };
 
-  const addProduct = (product: Omit<Product, 'id' | 'lastUpdated'>) => {
-    const newProduct: Product = {
+  const login = async (email: string, password: string) => {
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    return !error;
+  };
+
+  const logout = async () => {
+    await supabase.auth.signOut();
+  };
+
+  const changePassword = async (_oldPass: string, newPass: string) => {
+    const { error } = await supabase.auth.updateUser({ password: newPass });
+    return !error;
+  };
+
+  const addProduct = async (product: Omit<Product, 'id' | 'lastUpdated'>) => {
+    const { data, error } = await supabase.from('products').insert([{
       ...product,
-      id: crypto.randomUUID(),
-      lastUpdated: new Date().toISOString(),
-    };
-    setProducts([...products, newProduct]);
-    if (newProduct.quantity > 0) {
-      addMovement(newProduct.id, newProduct.name, 'IN', newProduct.quantity, 'Initialisation du stock');
-    }
-  };
+      lastUpdated: new Date().toISOString()
+    }]).select().single();
 
-  const updateProduct = (id: string, updates: Partial<Product>, movementReason?: string) => {
-    setProducts(products.map(p => {
-      if (p.id === id) {
-        const updated = { ...p, ...updates, lastUpdated: new Date().toISOString() };
-        if (updates.quantity !== undefined && updates.quantity !== p.quantity) {
-          const diff = updates.quantity - p.quantity;
-          addMovement(id, p.name, diff > 0 ? 'IN' : 'OUT', Math.abs(diff), movementReason || 'Mise à jour manuelle');
-        }
-        return updated;
+    if (data && !error) {
+      setProducts([data, ...products]);
+      if (data.quantity > 0) {
+        await addMovement(data.id, data.name, 'IN', data.quantity, 'Initialisation du stock');
       }
-      return p;
-    }));
+    }
+    return !error;
   };
 
-  const deleteProduct = (id: string) => {
-    setProducts(products.filter(p => p.id !== id));
-    setMovements(movements.filter(m => m.productId !== id));
+  const updateProduct = async (id: string, updates: Partial<Product>, movementReason?: string) => {
+    const product = products.find(p => p.id === id);
+    if (!product) return false;
+
+    const { data, error } = await supabase.from('products').update({
+      ...updates,
+      lastUpdated: new Date().toISOString()
+    }).eq('id', id).select().single();
+
+    if (data && !error) {
+      setProducts(products.map(p => p.id === id ? data : p));
+      if (updates.quantity !== undefined && updates.quantity !== product.quantity) {
+        const diff = updates.quantity - product.quantity;
+        await addMovement(id, product.name, diff > 0 ? 'IN' : 'OUT', Math.abs(diff), movementReason || 'Mise à jour manuelle');
+      }
+    }
+    return !error;
   };
 
-  const addMovement = (productId: string, productName: string, type: 'IN' | 'OUT', quantity: number, reason: string, reference?: string) => {
-    const newMovement: Movement = {
-      id: crypto.randomUUID(),
+  const deleteProduct = async (id: string) => {
+    const { error } = await supabase.from('products').delete().eq('id', id);
+    if (!error) {
+      setProducts(products.filter(p => p.id !== id));
+      setMovements(movements.filter(m => m.productId !== id));
+    }
+    return !error;
+  };
+
+  const addMovement = async (productId: string, productName: string, type: 'IN' | 'OUT', quantity: number, reason: string, reference?: string) => {
+    const newMovement = {
       productId,
       productName,
       type,
       quantity,
       reason,
       reference,
-      date: new Date().toISOString(),
+      date: new Date().toISOString()
     };
-    setMovements([newMovement, ...movements].slice(0, 100));
+
+    const { data, error } = await supabase.from('movements').insert([newMovement]).select().single();
+    if (data && !error) {
+      setMovements([data, ...movements].slice(0, 100));
+    }
+    return !error;
   };
 
-  // Category CRUD
-  const addCategory = (name: string, description?: string) => {
-    setCategories([...categories, { id: crypto.randomUUID(), name, description }]);
+  const addCategory = async (name: string, description?: string) => {
+    const { data, error } = await supabase.from('categories').insert([{ name, description }]).select().single();
+    if (data && !error) {
+      setCategories([...categories, data]);
+    }
+    return !error;
   };
 
-  const deleteCategory = (id: string) => {
-    setCategories(categories.filter(c => c.id !== id));
+  const deleteCategory = async (id: string) => {
+    const { error } = await supabase.from('categories').delete().eq('id', id);
+    if (!error) {
+      setCategories(categories.filter(c => c.id !== id));
+    }
+    return !error;
   };
 
-  // Supplier CRUD
-  const addSupplier = (supplier: Omit<Supplier, 'id'>) => {
-    setSuppliers([...suppliers, { ...supplier, id: crypto.randomUUID() }]);
+  const addSupplier = async (supplier: Omit<Supplier, 'id'>) => {
+    const { data, error } = await supabase.from('suppliers').insert([supplier]).select().single();
+    if (data && !error) {
+      setSuppliers([...suppliers, data]);
+    }
+    return !error;
   };
 
-  const deleteSupplier = (id: string) => {
-    setSuppliers(suppliers.filter(s => s.id !== id));
+  const deleteSupplier = async (id: string) => {
+    const { error } = await supabase.from('suppliers').delete().eq('id', id);
+    if (!error) {
+      setSuppliers(suppliers.filter(s => s.id !== id));
+    }
+    return !error;
   };
 
   const currentCurrency = CURRENCIES.find(c => c.code === settings.currencyCode) || CURRENCIES[0];
@@ -172,6 +211,7 @@ export const useInventory = () => {
     stats,
     settings,
     user,
+    loading,
     currentCurrency,
     setSettings,
     login,
@@ -187,3 +227,4 @@ export const useInventory = () => {
     formatPrice
   };
 };
+

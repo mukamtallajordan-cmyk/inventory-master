@@ -5,8 +5,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 interface SuppliersProps {
   suppliers: Supplier[];
-  onAdd: (supplier: any) => void;
-  onDelete: (id: string) => void;
+  onAdd: (supplier: any) => Promise<boolean>;
+  onDelete: (id: string) => Promise<boolean>;
 }
 
 export const Suppliers: React.FC<SuppliersProps> = ({ suppliers, onAdd, onDelete }) => {
