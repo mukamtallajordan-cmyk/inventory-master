@@ -13,7 +13,7 @@ interface InventoryProps {
   formatPrice: (price: number) => string;
 }
 
-export const Inventory: React.FC<InventoryProps> = ({ products, categories, suppliers, onAdd, onUpdate, onDelete, formatPrice }) => {
+export const Inventory = ({ products, categories, suppliers, onAdd, onUpdate, onDelete, formatPrice }: InventoryProps) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isScannerOpen, setIsScannerOpen] = useState(false);

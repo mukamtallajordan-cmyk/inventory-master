@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import type { Category } from '../types';
-import { Plus, Tag, Trash2, LayoutGrid } from 'lucide-react';
+import { Plus, Tag, Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface CategoriesProps {
@@ -9,12 +9,12 @@ interface CategoriesProps {
   onDelete: (id: string) => Promise<boolean>;
 }
 
-export const Categories: React.FC<CategoriesProps> = ({ categories, onAdd, onDelete }) => {
+export const Categories = ({ categories, onAdd, onDelete }: CategoriesProps) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newName, setNewName] = useState('');
   const [newDesc, setNewDesc] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: { preventDefault: () => void }) => {
     e.preventDefault();
     onAdd(newName, newDesc);
     setIsModalOpen(false);

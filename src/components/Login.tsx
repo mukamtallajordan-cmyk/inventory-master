@@ -7,8 +7,8 @@ interface LoginProps {
 }
 
 export const Login: React.FC<LoginProps> = ({ onLogin }) => {
-  const [email, setEmail] = useState('admin@stockmaster.com');
-  const [password, setPassword] = useState('admin123');
+  const [email, setEmail] = useState('stockmaster@admin.com');
+  const [password, setPassword] = useState('Admin1234');
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 

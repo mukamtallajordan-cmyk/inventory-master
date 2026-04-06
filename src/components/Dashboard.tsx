@@ -1,6 +1,5 @@
-import React from 'react';
 import type { InventoryStats, Movement, Product, Category } from '../types';
-import { TrendingUp, AlertTriangle, DollarSign, Layers, Users, PieChart as PieIcon } from 'lucide-react';
+import { AlertTriangle, DollarSign, Layers, Users } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, PieChart, Pie } from 'recharts';
 
@@ -12,7 +11,7 @@ interface DashboardProps {
   formatPrice: (price: number) => string;
 }
 
-export const Dashboard: React.FC<DashboardProps> = ({ stats, recentMovements, products, categories, formatPrice }) => {
+export const Dashboard = ({ stats, recentMovements, products, categories, formatPrice }: DashboardProps) => {
   const cards = [
     { label: 'Valeur Totale', value: formatPrice(stats.totalValue), icon: DollarSign, color: 'var(--accent-primary)' },
     { label: 'Produits', value: stats.totalProducts, icon: Layers, color: 'var(--success)' },
@@ -94,7 +93,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats, recentMovements, pr
                 paddingAngle={5}
                 dataKey="value"
               >
-                {categoryData.map((entry, index) => (
+                {categoryData.map((_, index) => (
                   <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                 ))}
               </Pie>

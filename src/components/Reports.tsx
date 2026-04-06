@@ -1,5 +1,4 @@
-import React from 'react';
-import type { Product, Movement, Supplier } from '../types';
+import type { Product, Movement } from '../types';
 import { FileText, Download, Table as TableIcon, FileCheck } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import { motion } from 'framer-motion';
@@ -10,7 +9,7 @@ interface ReportsProps {
   formatPrice: (price: number) => string;
 }
 
-export const Reports: React.FC<ReportsProps> = ({ products, movements, formatPrice }) => {
+export const Reports = ({ products, formatPrice }: ReportsProps) => {
   const exportCSV = () => {
     const headers = ['Nom', 'SKU', 'Prix', 'Quantité', 'Valeur Totale'];
     const rows = products.map(p => [
