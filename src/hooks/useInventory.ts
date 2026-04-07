@@ -75,8 +75,24 @@ export const useInventory = () => {
 
       if (categoriesData) setCategories(categoriesData);
       if (suppliersData) setSuppliers(suppliersData);
-      if (productsData) setProducts(productsData);
-      if (movementsData) setMovements(movementsData);
+      
+      if (productsData) {
+        setProducts(productsData.map((p: any) => ({
+          ...p,
+          categoryId: p.category_id,
+          supplierId: p.supplier_id,
+          minQuantity: p.min_quantity,
+          lastUpdated: p.last_updated
+        })));
+      }
+      
+      if (movementsData) {
+        setMovements(movementsData.map((m: any) => ({
+          ...m,
+          productId: m.product_id,
+          productName: m.product_name
+        })));
+      }
     } catch (error) {
       console.error('Error fetching data:', error);
     }
@@ -98,18 +114,32 @@ export const useInventory = () => {
 
   const addProduct = async (product: Omit<Product, 'id' | 'lastUpdated'>) => {
     const { data, error } = await supabase.from('products').insert([{
-      ...product,
-      lastUpdated: new Date().toISOString()
+      name: product.name,
+      sku: product.sku,
+      category_id: product.categoryId,
+      supplier_id: product.supplierId,
+      price: product.price,
+      quantity: product.quantity,
+      min_quantity: product.minQuantity,
+      last_updated: new Date().toISOString()
     }]).select().single();
 
     if (error) {
       console.error('Error adding product:', error);
       return false;
     }
+
     if (data) {
-      setProducts([data, ...products]);
-      if (data.quantity > 0) {
-        await addMovement(data.id, data.name, 'IN', data.quantity, 'Initialisation du stock');
+      const newProd = {
+        ...data,
+        categoryId: data.category_id,
+        supplierId: data.supplier_id,
+        minQuantity: data.min_quantity,
+        lastUpdated: data.last_updated
+      };
+      setProducts([newProd, ...products]);
+      if (newProd.quantity > 0) {
+        await addMovement(newProd.id, newProd.name, 'IN', newProd.quantity, 'Initialisation du stock');
       }
     }
     return true;
@@ -119,9 +149,17 @@ export const useInventory = () => {
     const product = products.find(p => p.id === id);
     if (!product) return false;
 
+    const mappedUpdates: any = { ...updates };
+    if (updates.categoryId) mappedUpdates.category_id = updates.categoryId;
+    if (updates.supplierId) mappedUpdates.supplier_id = updates.supplierId;
+    if (updates.minQuantity !== undefined) mappedUpdates.min_quantity = updates.minQuantity;
+    delete mappedUpdates.categoryId;
+    delete mappedUpdates.supplierId;
+    delete mappedUpdates.minQuantity;
+
     const { data, error } = await supabase.from('products').update({
-      ...updates,
-      lastUpdated: new Date().toISOString()
+      ...mappedUpdates,
+      last_updated: new Date().toISOString()
     }).eq('id', id).select().single();
 
     if (error) {
@@ -129,7 +167,14 @@ export const useInventory = () => {
       return false;
     }
     if (data) {
-      setProducts(products.map(p => p.id === id ? data : p));
+      const updatedProd = {
+        ...data,
+        categoryId: data.category_id,
+        supplierId: data.supplier_id,
+        minQuantity: data.min_quantity,
+        lastUpdated: data.last_updated
+      };
+      setProducts(products.map(p => p.id === id ? updatedProd : p));
       if (updates.quantity !== undefined && updates.quantity !== product.quantity) {
         const diff = updates.quantity - product.quantity;
         await addMovement(id, product.name, diff > 0 ? 'IN' : 'OUT', Math.abs(diff), movementReason || 'Mise à jour manuelle');
@@ -151,8 +196,8 @@ export const useInventory = () => {
 
   const addMovement = async (productId: string, productName: string, type: 'IN' | 'OUT', quantity: number, reason: string, reference?: string) => {
     const newMovement = {
-      productId,
-      productName,
+      product_id: productId,
+      product_name: productName,
       type,
       quantity,
       reason,
@@ -161,10 +206,19 @@ export const useInventory = () => {
     };
 
     const { data, error } = await supabase.from('movements').insert([newMovement]).select().single();
-    if (data && !error) {
-      setMovements([data, ...movements].slice(0, 100));
+    if (error) {
+      console.error('Error adding movement:', error);
+      return false;
     }
-    return !error;
+    if (data) {
+      const mappedMovement = {
+        ...data,
+        productId: data.product_id,
+        productName: data.product_name
+      };
+      setMovements([mappedMovement, ...movements].slice(0, 100));
+    }
+    return true;
   };
 
   const addCategory = async (name: string, description?: string) => {
