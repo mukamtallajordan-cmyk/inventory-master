@@ -21,28 +21,51 @@ export const Inventory = ({ products, categories, suppliers, onAdd, onUpdate, on
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [adjustData, setAdjustData] = useState({ type: 'IN' as 'IN' | 'OUT', quantity: 0, reason: '', reference: '' });
   const [newProduct, setNewProduct] = useState({ name: '', sku: '', categoryId: '', supplierId: '', price: 0, quantity: 0, minQuantity: 5 });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const filteredProducts = products.filter(p => 
     p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
     p.sku.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onAdd(newProduct);
-    setIsModalOpen(false);
+    setError(null);
+    setIsSubmitting(true);
+    try {
+      const success = await onAdd(newProduct);
+      if (success) {
+        setIsModalOpen(false);
+        setNewProduct({ name: '', sku: '', categoryId: '', supplierId: '', price: 0, quantity: 0, minQuantity: 5 });
+      } else {
+        setError("Erreur lors de l'ajout. Vérifiez les politiques RLS.");
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const handleAdjustSubmit = (e: React.FormEvent) => {
+  const handleAdjustSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedProduct) return;
     
-    const qtyChange = adjustData.type === 'IN' ? adjustData.quantity : -adjustData.quantity;
-    const newQty = selectedProduct.quantity + qtyChange;
-    
-    onUpdate(selectedProduct.id, { quantity: newQty }, adjustData.reason);
-    setIsAdjustOpen(false);
-    setAdjustData({ type: 'IN', quantity: 0, reason: '', reference: '' });
+    setError(null);
+    setIsSubmitting(true);
+    try {
+      const qtyChange = adjustData.type === 'IN' ? adjustData.quantity : -adjustData.quantity;
+      const newQty = selectedProduct.quantity + qtyChange;
+      
+      const success = await onUpdate(selectedProduct.id, { quantity: newQty }, adjustData.reason);
+      if (success) {
+        setIsAdjustOpen(false);
+        setAdjustData({ type: 'IN', quantity: 0, reason: '', reference: '' });
+      } else {
+        setError("Erreur lors de la mise à jour.");
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const simulateScan = () => {
@@ -169,9 +192,18 @@ export const Inventory = ({ products, categories, suppliers, onAdd, onUpdate, on
                   <input type="number" required className="input" value={newProduct.minQuantity} onChange={e => setNewProduct({...newProduct, minQuantity: Number(e.target.value)})} />
                 </div>
               </div>
+              
+              {error && (
+                <div style={{ padding: '0.8rem', background: 'rgba(255, 50, 50, 0.1)', color: 'var(--error)', borderRadius: '8px', fontSize: '0.85rem', marginBottom: '1rem', border: '1px solid rgba(255, 50, 50, 0.2)' }}>
+                  {error}
+                </div>
+              )}
+
               <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end', marginTop: '1rem' }}>
-                <button type="button" className="btn btn-ghost" onClick={() => setIsModalOpen(false)}>Annuler</button>
-                <button type="submit" className="btn btn-primary">Créer</button>
+                <button type="button" className="btn btn-ghost" onClick={() => { setIsModalOpen(false); setError(null); }} disabled={isSubmitting}>Annuler</button>
+                <button type="submit" className="btn btn-primary" disabled={isSubmitting}>
+                  {isSubmitting ? 'Création...' : 'Créer'}
+                </button>
               </div>
             </form>
           </motion.div>

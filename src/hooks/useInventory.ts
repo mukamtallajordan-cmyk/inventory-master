@@ -102,13 +102,17 @@ export const useInventory = () => {
       lastUpdated: new Date().toISOString()
     }]).select().single();
 
-    if (data && !error) {
+    if (error) {
+      console.error('Error adding product:', error);
+      return false;
+    }
+    if (data) {
       setProducts([data, ...products]);
       if (data.quantity > 0) {
         await addMovement(data.id, data.name, 'IN', data.quantity, 'Initialisation du stock');
       }
     }
-    return !error;
+    return true;
   };
 
   const updateProduct = async (id: string, updates: Partial<Product>, movementReason?: string) => {
@@ -120,23 +124,29 @@ export const useInventory = () => {
       lastUpdated: new Date().toISOString()
     }).eq('id', id).select().single();
 
-    if (data && !error) {
+    if (error) {
+      console.error('Error updating product:', error);
+      return false;
+    }
+    if (data) {
       setProducts(products.map(p => p.id === id ? data : p));
       if (updates.quantity !== undefined && updates.quantity !== product.quantity) {
         const diff = updates.quantity - product.quantity;
         await addMovement(id, product.name, diff > 0 ? 'IN' : 'OUT', Math.abs(diff), movementReason || 'Mise à jour manuelle');
       }
     }
-    return !error;
+    return true;
   };
 
   const deleteProduct = async (id: string) => {
     const { error } = await supabase.from('products').delete().eq('id', id);
-    if (!error) {
-      setProducts(products.filter(p => p.id !== id));
-      setMovements(movements.filter(m => m.productId !== id));
+    if (error) {
+      console.error('Error deleting product:', error);
+      return false;
     }
-    return !error;
+    setProducts(products.filter(p => p.id !== id));
+    setMovements(movements.filter(m => m.productId !== id));
+    return true;
   };
 
   const addMovement = async (productId: string, productName: string, type: 'IN' | 'OUT', quantity: number, reason: string, reference?: string) => {
